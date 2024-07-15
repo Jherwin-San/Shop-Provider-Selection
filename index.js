@@ -12,6 +12,7 @@ require("./passport");
 const cors = require("cors");
 
 // Allows access to routes defined within our application
+const authRouter = require("./authentication/google.js");
 const userRoutes = require("./routes/user.js");
 const productRoutes = require("./routes/product.js");
 const cartRoutes = require("./routes/cart.js");
@@ -26,8 +27,9 @@ const app = express();
 const port = process.env.PORT;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Allows all resources to access our backend application
-app.use(cors());
+
+
+
 
 
 // Google Login
@@ -44,6 +46,14 @@ app.use(passport.initialize());
 // Creates a session using the passport package
 app.use(passport.session());
 
+app.use(
+	cors({
+		origin: "http://localhost:5173",
+		methods: "GET,POST,PUT,PATCH,DELETE",
+		credentials: true,
+	})
+);
+
 // Connect to MongoDB database
 mongoose.connect(
   `${process.env.MONGO_URI}`
@@ -54,12 +64,12 @@ mongoose.connection.once("open", () =>
   console.log("Now connected to MongoDB Atlas")
 );
 
-passport.serializeUser(function (user, cb) {
-  cb(null, user);
-});
-passport.deserializeUser(function (obj, cb) {
-  cb(null, obj);
-});
+// passport.serializeUser(function (user, cb) {
+//   cb(null, user);
+// });
+// passport.deserializeUser(function (obj, cb) {
+//   cb(null, obj);
+// });
 
 // Backend Routes
 // app.use("/", (req,res) => {
@@ -70,8 +80,8 @@ passport.deserializeUser(function (obj, cb) {
 
 
 app.use('/auth/google', authRouter);
-app.use('/auth/facebook', facebookRouter);
-app.use('/auth/github', githubRouter);
+// app.use('/auth/facebook', facebookRouter);
+// app.use('/auth/github', githubRouter);
 
 app.use("/shop/users", userRoutes);
 app.use("/shop/products", productRoutes);

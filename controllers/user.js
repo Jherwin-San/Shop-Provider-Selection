@@ -2,7 +2,7 @@
 const bcrypt = require("bcrypt");
 // The "User" variable is defined using a capitalized letter to indicate that what we are using is the "User" model for code readability
 const User = require("../models/User.js");
-const auth = require("../authentication/auth.js");
+const { createAccessToken } = require("../authentication/auth.js");
 const nodemailer = require('nodemailer');
 const emailService = require('../services/emailService');
 const cloudinary = require("../services/cloudinary.js");
@@ -95,6 +95,44 @@ module.exports.registerUser = async (req, res) => {
   }
 };
 
+// [SECTION] USER REGISTER OR LOGGIN WITH GOOGLE
+module.exports.registerAndLoginWithGoogle = async (oauthUser) => {
+  try {
+    // Check if the user already exists based on email and provider
+    let existingUser = await User.findOne({
+      accountId: String(oauthUser.id),
+      email: oauthUser.emails[0].value,
+      provider: oauthUser.provider,
+    });
+
+    // If the user exists, generate a login token/session
+    if (existingUser) {
+      const token = createAccessToken(existingUser);
+      return { success: { message: 'User logged in.', token } };
+    }
+
+    // If the user doesn't exist, create a new user
+    const user = new User({
+      accountId: String(oauthUser.id),
+      firstName: oauthUser.name.givenName,
+      lastName: oauthUser.name.familyName,
+      email: oauthUser.emails[0].value,
+      profile: oauthUser.photos[0].value,
+      provider: oauthUser.provider,
+    });
+  
+    await user.save();
+
+    // Generate a login token/session for the new user
+    const token = createAccessToken(user);
+
+    return { success: { message: 'User registered and logged in.', token } };
+  } catch (error) {
+    console.error("Error in Google registration and login:", error);
+    return { failure: { message: 'Internal Server Error' } };
+  }
+};
+
 //[SECTION] User authentication / Login 
 module.exports.loginUser = (req, res) => {
   const { email, password } = req.body;
@@ -113,7 +151,7 @@ module.exports.loginUser = (req, res) => {
             if (isPasswordCorrect) {
               return res
                 .status(200)
-                .send({ access: auth.createAccessToken(result) });
+                .send({ access: createAccessToken(result) });
             } else {
               // return res.send("Email and password do not match");
               return res
